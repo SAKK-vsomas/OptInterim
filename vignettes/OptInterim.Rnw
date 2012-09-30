@@ -1,0 +1,549 @@
+% \VignetteIndexEntry{OptInterim Manual}
+% \VignetteDepends{OptInterim}
+% \VignettePackage{OptInterim}
+\documentclass[12pt]{article}
+
+\SweaveOpts{echo=FALSE}
+<<results=hide>>=
+
+library(OptInterim)
+@
+
+
+\usepackage{amsmath}
+\usepackage[utf8]{inputenx} \input{ix-utf8enc.dfu}
+\usepackage[pdftex]{graphicx}
+\usepackage{color}
+\usepackage{xspace}
+\usepackage{fancyvrb}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{algorithm2e}
+\usepackage[
+         colorlinks=true,
+         linkcolor=blue,
+         citecolor=blue,
+         urlcolor=blue]
+         {hyperref}
+\usepackage{Sweave}
+
+\newcommand{\bld}[1]{\mbox{\boldmath $#1$}}
+\newcommand{\shell}[1]{\mbox{$#1$}}
+\renewcommand{\vec}[1]{\mbox{\bf {#1}}}
+
+%\newcommand{\ReallySmallSpacing}{\renewcommand{\baselinestretch}{.6}\Large\normalsize}
+\renewcommand{\baselinestretch}{1.3}
+
+\newcommand{\halfs}{\frac{1}{2}}
+
+%\setlength{\oddsidemargin}{-.25 truein}
+%\setlength{\evensidemargin}{0truein}
+%\setlength{\topmargin}{-0.2truein}
+%\setlength{\textwidth}{7 truein}
+%\setlength{\textheight}{8.5 truein}
+%\setlength{\parindent}{0.20truein}
+%\setlength{\parskip}{0.10truein}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\pagestyle{fancy}
+\lhead{}
+\chead{The \texttt{OptInterim} Package}
+\rhead{}
+\lfoot{}
+
+
+\renewcommand{\headrulewidth}{1pt}
+\renewcommand{\footrulewidth}{1pt}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\title{The \texttt{OptInterim} Package}
+\author{Bo Huang and Neal Thomas\\Pfizer Inc. }
+\maketitle
+
+\tableofcontents
+%\listoftables
+%\listoffigures
+
+\SweaveOpts{echo=true}
+
+
+%\addcontentsline{toc}{section}{Introduction}
+\section{Introduction}
+Phase II oncology trials of cytotoxic compounds measured effect
+by tumor shrinkage using single-group designs that compared the proportion of responders
+to well-established historical response
+rates.  With many new drugs targeting molecular pathways or the immune system, such as vaccines and
+immunotherapies, it may not be appropriate to use tumor shrinkage to evaluate activity.  Instead,
+decision criteria are based on overall survival or imaging endpoints such as progression-free
+survival (PFS) that require longer follow-up, as treatment differences may be delayed and poorly
+described by models based on the proportional hazards assumption (Hoose et al., 2010). 
+These endpoints tend to vary more across trials than the consistently low tumor response rates observed in past
+trials, so two-stage designs with randomized concurrent comparisons may be needed.  
+Ratain and Sargent (2009) argue
+the most promising endpoints for randomized phase II trials involve a comparison of a primary
+outcome measure at a single time point between the treatment and control groups.  Such endpoints
+facilitate independent radiologic review, may reduce subtle differences in scanning frequencies,
+simplify patient scheduling, and can be chosen to represent clinically meaningful time points. 
+Recent EMA draft guidelines on the evaluation of anti-cancer medicinal products 
+(EMA, 2011), state that for some conditions, progression will be observed at a
+slow rate making frequent assessments a burden to the patients, so event rates
+at a specified fixed time might be appropriate.  Similar design considerations also 
+apply in other therapuetic areas, such as the rate of transplant rejection, which is typically
+reported after $6$ months of treatment following organ transplantation, in studies of immune-suppression
+drug (French, Thomas and Wang, 2012).
+
+
+Phase II trials are often designed with an interim analysis so they can be stopped early if a drug
+is ineffective. However, when the primary endpoint requires a longer observation period, interim
+analyses are challenging because of incomplete follow-up for some patients at the time of the
+interim analysis.  Standard single-arm designs such as Simon (1989) require suspension of accrual while
+patient follow-up is completed.  Case and Morgan (2003) presented a two-stage design for a phase II
+oncology trial with a long-term endpoint that does not suspend accrual while the interim analysis
+is conducted.  They proposed to use the Kaplan-Meier or Nelson-Aalen estimators of the event
+probability, using methods like those in Lin et al (1996). Estimation at the time of the interim
+analysis includes patients with partial follow-up without necessitating trial suspension, as also 
+proposed by Jennison and Turnbull (2000).  The
+design minimizes either the expected sample size, expected duration of accrual, or the expected
+total study length under the hypothesis that the drug is ineffective. The null hypothesis for the
+new design is an (assumed) known event-free rate within a specified time, which has been judged to
+represent ineffective treatment.  This is similar to  the hypothesis in the Simon design, but with
+much longer specified times for events to occur.  Schaid, Wieand, and Therneau (1990) proposed a
+similar design using the log rank statistic, which also incorporates patients with incomplete
+follow-up;  the log rank statistic is not evaluated here, but could be inlcuded as a future
+software option.
+
+We generalize the Simon design and Case and Morgan's extension and propose an optimal interim design 
+with long-term time specific endpoints, which can do both single-arm and randomized two-arm comparative
+trials, with one interim (two-stage) or two interim (three-stage) analyses. Because designs with no
+pause in accrual use partial information from some patients at the interim analysis, they require 
+more patients, so time-savings from the elimination of the accrual pause can be lost due to the need
+to accrue more patients.  Methods are developed here for compromise designs that
+specify a brief pause (e.g., 2-3 months) to accumulate more information per patient and permit
+concentrated data collection and cleaning for the interim analysis.
+
+Both Lin et al (1996) and Case and Morgan (2003) assume a constant accrual rate throughout the
+trial, which is not typical in practice. We further investigate the design properties by
+generalizing the accrual distribution to have different accrual rates in user-specified intervals.
+As noted in Case and Morgan (2003), when only partial follow-up data are available, the level of
+the testing procedure can depend on the assumed accrual distribution and the assumed time-to-event
+distribution under the null hypothesis.  We evaluate an optimal design and corresponding analysis
+that ensure the Type I error rate is below the target level.  The reduction in power or
+corresponding increase in sample size necessary to achieve the conservative type I error rates is
+also evaluated.
+
+The theoretical derivations of the optimal designs specify a fixed time to end the first stage of
+accrual and to conduct the interim analysis, with corresponding projected sample size. Case and
+Morgan (2003) also evaluated a modified interim timing rule that ends the first stage when the
+projected number of patients has been accrued regardless of the planned interim time. They showed
+this rule has more robust statistical properties when the accrual rate is mis-specified.  We also
+evaluate this interim timing rule and an additional rule based on the projected patient exposure at
+the optimal interim time. This rule not only accounts for the number of patients actually accrued,
+but also the length of time patients have been observed. All of the interim timing rules can be
+easily applied in practice.
+
+This R package {\it OptInterim} was created to generate the optimal designs and resulting analyses. The package
+includes code to perform simulations to validate the theoretical calculations, some of which depend
+on asymptotic approximations.  The package also has several options for evaluating a proposed
+design under conditions that differ from those assumed when the design was created. All these will be
+elaborated with examples in the subsequent sections.
+
+\section{Generate the Optimal Designs}
+\label{OptimDes}
+\subsection{Optimal Design Functions}
+
+\begin{center}
+\begin{verbatim}
+OptimDes(B.init,m.init,alpha,beta,param,x,target=c("EDA","ETSL","ES"),
+         sf=c("futility","OF","Pocock"),num.arm,r=0.5,num.stage=2,
+         pause=0,control=OptimDesControl(),...)
+
+np.OptimDes(B.init,m.init,alpha,beta,param,x,n=NULL,pn=NULL,pt=NULL,
+            target=c("EDA","ETSL","ES"),sf=c("futility","OF","Pocock"),
+            num.arm,r=0.5,num.stage=2,pause=0,control=OptimDesControl(), ...)
+\end{verbatim}
+\end{center}
+
+{\it OptimDes} finds an optimal single-arm or two-arm design with either two stages or three stages
+for a time-specific event-free endpoint (e.g. 1-year OS in oncology) with potential stopping for futility, 
+or it may be stopped for a positive efficacy outcome depending on a pre-specified alpha spending function 
+(argument {\it SF}) at the interim(s). The design minimizes either the expected duration of accrual (EDA), 
+expected sample size (ES), or the expected total study length (ETSL). 
+
+The design calculations assume Weibull distributions for the event-free endpoint in the treated group, and for the 
+(assumed known, "Null") control distribution. The function {\it weibPmatch} (see Section \ref{weibull}) can be used to select 
+Weibull parameters that yield a target event-free rate at a specified time. Estimation is based on the Kaplan-Meier 
+or Nelson-Aalen estimators evaluated at a target time (e.g., 1 year). The treatment and control distributions and 
+the accrual distribution affect power (and alpha level in some settings), see Huang, Talukder and Thomas (2010). 
+
+Accrual rates are specified by the user. These rates can differ across time intervals specified by the user (this 
+generalizes the results in Case and Morgan). The accrual information is controlled by arguments {\it B.init} and 
+{\it m.init}.  
+
+The design has the capability of allowing for a brief pause (e.g., 2-3 months) to accumulate more information per 
+patient and permit concentrated data collection and cleaning for the interim analysis.
+
+
+
+{\it OptimDes} assume no recovery the amount of $\alpha$ potentially saved
+at the interim analysis (analogous to non-binding in group sequential designs) to ensure control of the type I error rate. 
+
+{\bf Note:} Details of {\it OptInterim} and all subsequent package functions can be found on the help pages. 
+
+\subsection{Example 1: Single-Arm Two-Stage Design without Interim Pause}
+\label{optexample1}
+
+Assume the 1-year survival rate of a standard cancer therapy is 0.40 ($H_0$). An improvement to 0.60 would be 
+considered clinically significant ($H_1$). Assume the survival distributions have different shapes and scales under 
+null and the alternative, determined by the weibull parameters $(1, 1.09)$ under $H_0$ and $(2, 1.40)$ under $H_1$.  
+Type I error is 0.05. Type II error is 0.1. It is also assumed that the numbers of patients that can be enrolled in
+the first 5 years are 15, 20, 25, 20 and 15 respectively.
+<<>>=
+B.init <- c(1, 2, 3, 4, 5)
+m.init <- c(15, 20, 25, 20, 15)
+alpha <- 0.05
+beta <- 0.1
+param <- c(1, 1.09, 2, 1.40)
+x <- 1
+
+# H0: S0=0.40 H1: S1=0.60
+@
+
+The optimal design {\it object12} minimizing the expected total study length (ETSL) after 
+implementing {\it OptimDes} can then be obtained.
+
+<<results=hide,echo=FALSE>>=
+load('examples.RData')
+@
+
+\begin{center}
+\begin{verbatim}
+> object12 <- OptimDes(B.init,m.init,alpha,beta,param,x,
++ target="ETSL",sf="futility",num.arm=1,num.stage=2,
++ control=OptimDesControl(n.int=c(1,5)),pause=0)
+\end{verbatim}
+\end{center}
+<<>>=
+print(object12)
+@
+
+For single-group trials, normal approximation often produces a larger sample size than the exact test. 
+The {\it OptimDes} function has the capability to apply the adjustment by Case and Morgan (2003), 
+which is important due to the conservative nature of normal approximation in small single-group studies.
+<<>>=
+print(object12,CMadj=TRUE)
+@
+
+
+A plot function {\it plot.OptimDes} is used to display the ETSL, ES and EDA for a two-stage design relative to a 
+single-stage design as a function of the combined stage 1 and 2 sample size. It demonstrates the tradeoff between 
+ETSL, EDA and ES as a function of the combined sample size. Robustness of the optimal two-stage design to deviations 
+from the target sample size can be explored. The plot often suggests a compromised design achieving near-optimal results 
+for both EDA and ETSL be a favorable design to the optimal one based on a single criteria. 
+Test boundary values $(C_1, C_2)$, 
+and numerical values of other design parameters, can be obtained for a design selected from the plot using function 
+{\it np.OptimDes}. Thus, {\it np.OptimDes} generates the optimal design when the total sample size is fixed.
+
+Using the above case as an example with the optimal plot Figure \ref{obj12}. The optimal design is displayed as the sold circle on the plot. 
+If investigators believe a compromised design with maximum study length ratio = 1.1 ($pt=1.1$ in {\it np.OptimDes}) will
+save some patients while still producing near-optimal results, $pt=1.1$ can be input into {\it np.OptimDes} and the
+adjusted "optimal" design can be created  
+
+
+\begin{figure}[htbp]
+\begin{center}
+<<fig=true,echo=FALSE,width=5,height=5>>=
+plot(object12)
+@
+\caption{The optimality criteria displayed for a range of maximum sample sizes.  The criteria and
+the maximum sample sizes are expressed as ratios relative to the corresponding value in a
+single-stage fixed design.}\label{obj12}
+\end{center}
+\end{figure}
+
+
+\begin{center}
+\begin{verbatim}
+> object12_np <- np.OptimDes(B.init,m.init,alpha,beta,param,x,pn=1.1,
++ target="ETSL",sf="futility",num.arm=1,num.stage=2,
++ control=OptimDesControl(n.int=c(1,5)))
+\end{verbatim}
+\end{center}
+<<>>=
+print(object12_np)
+@
+
+
+\subsection{Example 2: Single-Arm Two-Stage Design with Interim Pause}
+\label{optexample2}
+Assume the 6-month progression-free survival (PFS) rate of a standard cancer therapy is 0.45 ($H_0$). 
+An improvement to 0.60 would be 
+considered clinically significant ($H_1$). Assume both the null and alternative PFS distributions follow
+an exponential distribution.  The 1-sided type I error rate is 0.10 and type II error rate is 0.2. 
+Prior assumption includes a fixed enrollment rate of 3 patients per month. We require a pause of 3 months
+at the end of Stage 1.
+<<>>=
+B.init <- 1:72
+m.init <- rep(3,72)
+alpha <- 0.10
+beta <- 0.2
+x <- 6
+pnull<-.45
+palt<-.6
+param <- c(1, weibPmatch(x,pnull,shape=1), 
+           1, weibPmatch(x,palt,shape=1))  
+# p0=.45, p1=.6 at x=1
+
+@
+
+The optimal design {\it object12P3} minimizing the expected total study length (ETSL) after 
+implementing {\it OptimDes} can then be obtained.
+
+
+\begin{center}
+\begin{verbatim}
+> object12P3 <- OptimDes(B.init,m.init,alpha,beta,param,x,
++ target="ETSL",sf="futility",num.arm=1,num.stage=2,
++ control=OptimDesControl(n.int=c(1,5)),pause=3)
+\end{verbatim}
+\end{center}
+<<>>=
+print(object12P3)
+@
+
+
+\subsection{Example 3: Two-Arm Three-Stage Design with Interim Pause}
+\label{optexample3}
+Because there may not be reliable information about the control rate, and there is potential for 
+bias due to patient and investigator expectations,  a design with a randomized
+and possibly blinded control group may be necessary. Under the same clinical background as Example 1, 
+we consider a randomized two-arm comparative design. This requires much larger sample sizes, so we 
+assume the enrollment rate at each of the 5 pre-specified time intervals 4 times that in the single-arm
+design counterpart. The survival distributions are also different. The null 1-year survival rate is 0.20
+versus the alternative rate of 0.35. Because of the larger sample size, the trial is planned with 
+two interim analyses for both futility and efficacy stopping (O'Brien-Fleming type alpha-spending function).
+We require a pause of 0.3 year at both interim analyses.
+
+<<>>=
+B.init <- c(1, 2, 3, 4, 5)
+m.init <- 4*c(15, 20, 25, 20, 15)
+alpha <- 0.05
+beta <- 0.1
+x<-1
+#p0=.2, p1=.35 at x=1
+param <- c(1.5, 0.7281438, 1.75, 0.9725991)
+
+@
+
+The optimal design {\it object23P3} minimizing the expected sample size (ES) after 
+implementing {\it OptimDes} can then be obtained.
+
+
+\begin{center}
+\begin{verbatim}
+> object23P3 <- OptimDes(B.init,m.init,alpha,beta,param,x,
++ target="ES",sf="OF",num.arm=2,num.stage=3,
++ control=OptimDesControl(aboveMin=c(1.05,1.10)),pause=0.3)
+\end{verbatim}
+\end{center}
+<<>>=
+print(object23P3)
+@
+
+
+
+\section{Test Statistics and Decision Rules at Each Stage}
+\label{test}
+\begin{center}
+\begin{verbatim}
+TestStage(tan,tstage,x,num.arm,num.stage,
+         Y1,T1,Y0=NULL,T0=NULL,p0=NULL,
+         C1L=NULL,C1U=NULL,C2L=NULL,C2U=NULL,C3U=NULL,
+         printTest=TRUE,
+         cen1=rep(1,length(T1)), cen0=rep(1,length(T0)))
+\end{verbatim}
+\end{center}
+
+The test statistic at the end of each stage is computed and compared to the decision boundaries.
+
+For example, the following decision rules are applied in a two-stage design with early futility
+stopping only:
+\begin{itemize}
+\item
+Stage 1: Accrue $n_1$ patients between time $0$ and time $t_1$. Each patient is followed
+until they have an event or successfully reach time $x$, or until study time $t_1$, whichever is
+first. Calculate the normalized Z-statistic by {\it Test2stage}, and denote it by $Z_1(x;t_1)$. If
+$Z_1(x;t_1)<C_1$, stop the study for futility; otherwise, continue to the next stage.  The probability of 
+stopping under the null hypothesis is approximated by $P_s=\Phi(C_1)$, where $\Phi$ is the standard normal 
+cummulative distribution function.  $n_1$ is  a random variable determined by $t_1$ and the accrual
+distribution.
+\item
+Stage 2: Accrue $n_2$ additional patients between times $t_1$ and maximum duration of accrual ($MDA$). Follow all
+patients (both stages) until they have an event or successfully reach time $x$, then calculate a
+second $Z$ statistic at the end of maximum total study length ($MTSL$), denoted by $Z_2(x;MTSL)$, and 
+reject $H_0$ if $Z_2(x;MTSL)>C_2$.  
+\end{itemize}
+
+For example, if at the end of Stage 1, the test statistic $Z_1=3.391$, $C_1=0.085$. Then {\it Test2stage} will return
+\begin{center}
+\begin{verbatim}
+Z1 >= C1, continue to the second stage
+\end{verbatim}
+\end{center}
+
+
+\section{Simulation Studies}
+\label{SimDes}
+
+\begin{center}
+\begin{verbatim}
+SimDes(
+object,B.init,m.init,weib0,weib1,interimRule='e1',
+sim.n=1000,e1conv=1/365,CMadj=F,attainI=1,attainT=1,
+FixDes="F", Rseed)
+\end{verbatim}
+\end{center}
+
+The {\it SimDes} function is a powerful function to simulate experiments to compare the true alpha level and power 
+of two-stage or three-stage designs from function {\it OptimDes} with the targeted nominal values. It can also be used to assess 
+the performance of the optimal design under mis-specification of the design parameters. For example, if the Weibull 
+shape and scale parameters of the time to event distributions are changed, if the accrual rates deviate from the 
+projected ones, or if the interim analysis is conducted differently from the planned one under the more realistic
+conditions. In addition, the function has the option to determine the timing of the interim analysis by matching
+the observed information to the expected time, number of patients or patient exposure (interimRule=``t1", ``n1" or ``e1").
+
+\subsection{Example 1: Optimal Settings}
+Recall that in Section \ref{optexample1} {\it object12} is the optimal design minimizing the ETSL. Under the expected
+parameter settings, 10000 simulations are conducted by matching the expected patient exposure at the interim 
+\begin{center}
+\begin{verbatim}
+> (simout12<-SimDes(object12,sim.n=10000))
+\end{verbatim}
+\end{center}
+<<echo=FALSE>>=
+simout12
+@
+
+Details of the returned values can be found from the help pages. For instance, the estimated alpha level using 
+an exact test for the second stage test is \Sexpr{simout12["alphaExact"]}.
+
+With the Case and Morgan adjustment, the simulation results are different:
+\begin{center}
+\begin{verbatim}
+> (simout12adj<-SimDes(object12,sim.n=10000,CMadj=TRUE))
+\end{verbatim}
+\end{center}
+<<echo=FALSE>>=
+simout12adj
+@
+
+
+\subsection{Example 2: Differed Accrual Rates}
+Now suppose the actual numbers of patients that can be accrued in the first 5 years are different from the originally
+planned for the optimal design ({\it m.init} below), then the results after 10000 simulated trials become
+\begin{center}
+\begin{verbatim}
+> (simout12_2 <- SimDes(object12,sim.n=10000,m.init = c(5, 5, 25, 25, 25)))
+\end{verbatim}
+\end{center}
+<<echo=FALSE>>=
+simout12_2
+@
+
+
+\subsection{Example 3: Differed Interim Timing}
+If the actual interim time or sample size (depending on {\it interimRule},{\it interimRule=``t1"} below) 
+is different from the originally
+planned for the optimal design ({\it attainI}=0.8 below), then the results after 10000 simulated trials become
+\begin{center}
+\begin{verbatim}
+> (simout12_3 <- SimDes(object12,sim.n=10000,interimRule = "t1",attainI = 0.8))
+\end{verbatim}
+\end{center}
+<<echo=FALSE>>=
+simout12_3
+@
+
+
+\section{Survival Curves Based on the Weibull Distribution}
+\label{weibull}
+\begin{center}
+\begin{verbatim}
+weibPmatch(x, p0, shape, scale)
+
+weibull.plot(param, x, l.type = 1:3, l.col = c("blue", "red"), ...)
+\end{verbatim}
+\end{center}
+
+{\it weibPmatch} and {\it weibull.plot} are used together to determine the shape and scale parameters of the
+Weibull distrbution for the survival curves under $H_0$ and $H_1$. The Weibull distribution is flexible enough
+to cover the majority of scenarios likely to encounter in practice. 
+
+{\it weibPmatch} determines the shape or 
+scale parameter of a Weibull distribution so it has event-free rate $P_0$ at time $x$. If the shape is specified, 
+the scale parameter is computed, and if the scale is specified, the shape parameter is computed. 
+
+{\it weibull.plot} then plots Weibull survival curves with differences at a target time highlighted from the parameters
+computed from {\it weibPmatch}. Figure \ref{weib} is an example plot implementing the Weibull parameters input 
+to {\it OptimDes} to create {\it object12}.
+
+<<results=hide,echo=FALSE>>=
+param <- c(1, 1.09, 2, 1.40)
+x <- 1
+
+@
+
+
+\begin{figure}[htbp]
+\begin{center}
+<<fig=true,echo=FALSE,width=5,height=5>>=
+weibull.plot(param,x)
+@
+\caption{Survival curves under the Weibull distribution} \label{weib}
+\end{center}
+\end{figure}
+
+\newpage
+
+\addcontentsline{toc}{section}{Bibliography}
+\begin{thebibliography}{}
+\bibitem{Hoos10} Hoos A, Eggermont A, Janetzki S, Hodi FS, Ibrahim R, Anderson A, Humphrey R, Blumenstein B, Old L, Wolchok J. 
+Improved Endpoints for Cancer Immunotherapy Trials. {\it J Natl Cancer Inst} 2010;{\bf 102}:1388-1397.
+\bibitem{Ratain09} Ratain MJ, Sargent DJ. Optimising the design of phase II
+oncology trials: The importance of randomization. {\it European Journal of Cancer} 2009; {\bf 45}:
+275-280.
+\bibitem{guide11} European Medicines Agency. Guideline on the evaluation of anticancer medicinal products in man.  {\it EMA/CHMP/205/95/rev.4}, 2011.
+\bibitem{french2012}
+French, J., Thomas, N., and Wang, C. (2012), Using historical data with Bayesian 
+methods in early clinical monitoring, 
+{\it Statistics in Biopharmaceutical Research} 2012; {\bf 4}:, 384-394.
+\bibitem{agresti02} Agresti, A. (2002). Categorical Data Analysis. {\it Weiley}
+\bibitem{brent73} Brent, R. (1973). Algorithms for minimization without derivatives. {\it Englewood Cliffs, Prentice Hall}
+\bibitem{cm2003} Case L.D. and Morgan, T.M. (2003). Design of phase II cancer trials evaluating survival probabilities. {\it BMC Medical Research Methodology} {\bf 3}: 6
+\bibitem{guide06} Food and Drug Administration (2006).  Guidance for Clinical Trial Sponsors:  Establishment and operation of clinical trial data monitoring committees.  {\it OMB Control No. 0910-0581}
+\bibitem{jonker07} Jonker DJ et al. (2007).  Abstract No. LB-1, {\it American Association for Cancer Research}
+
+\bibitem{km58} Kaplan, E.L. and Meier, P. (1958). Nonparametric estimation from incomplete observations. {\it Journal of American Statistical Association}. {\bf 53}: 457-481
+\bibitem{lin96} Lin, D.Y., Shen, L., Ying, Z. and Breslow, N.E. (1996). Group sequential designs for monitoring survival probabilities. {\it Biometrics}. {\bf 52}: 1033-1042
+\bibitem{huang10} Huang B, Talukder E, Thomas N.
+Optimal two-stage phase II designs with long-term endpoints. {\it Statistics in Biopharmaceutical
+Research} 2010; {\bf 2(1)}: 51-61.
+\bibitem{machin08} Machin, D., Campbell, M., Tan, S.B. and Tan, S.H. (2008). Sample Size Tables for
+Clinical Studies. {\it Blackwell}
+\bibitem{nelson69} Nelson, W. (1969). Hazard plotting for incomplete failure data. {\it J Quality Technology}. {\bf 1}: 27-52
+\bibitem{rao04} Rao S, Cunningham D, de Gramont A, et al (2004).  Phase III double-blind placebo-controlled study of farnesyl transferase
+inhibitor R115777 in patients with refractory advanced colorectal cancer.
+{\bf 22(19)}: 3950-3957
+\bibitem{schaid90} Schaid, D., Wieand, S., and Therneau, T. (1990).  Optimal two-stage screening designs for survival comparisons. {\it Biometrika}.
+{\bf 77}: 507-513
+\bibitem{simon89} Simon, R. (1989). Optimal two-stage designs for phase II clinical trials. {\it Controlled Clinical Trials}. {\bf 10}: 1-10
+\bibitem{vc07} Van Cutsem E, Peeters M, et.al. (2007).  Open-label phase III trial of panitumumab plus best
+supportive care compared with best supportive care alone in patients with
+chemotherapy-refractory metastatic colorectal cancer. {\it Journal of Clinical Oncology}. {\bf 1;25(13)}:1658-1664.
+\end{thebibliography}
+
+\end{document}
+

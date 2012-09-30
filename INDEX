@@ -1,0 +1,11 @@
+OptimDes                Optimal Two and Three Stage Designs with Time to Event Endpoints Evaluated at a Pre-specified Time
+OptimDesControl         Set Parameters Controlling Numerical Methods for OptimDes and np.OptimDes
+np.OptimDes             Optimal Two and Three Stage Designs with User-specified Sample Size or Percentage
+FixDes                  Sample Size for One-stage Phase II Designs with a Binary Endpoint 
+Teststage               Hypothesis Test for the Two and Three Stage Designs
+SimDes                  Simulation Study of the Optimal Design from Function OptimDes
+weibull.plot            Plot the Weibull Survival Curves under H0 and H1
+weibPmatch              Compute the Shape or Scale Parameter for a Weibull Distribution So It Has a Specified Event Rate at a Specified Time
+plot.OptimDes           Information Plot for the Optimal Designs
+print.OptimDes          Printing OptimDes Objects
+

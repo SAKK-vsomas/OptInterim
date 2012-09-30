@@ -1,0 +1,9 @@
+export(OptimDes,np.OptimDes,FixDes,TestStage,SimDes,weibull.plot,plot.OptimDes,
+       print.OptimDes,OptimDesControl,weibPmatch)
+import(mvtnorm,clinfun,graphics)
+
+S3method(plot, OptimDes)
+S3method(print, OptimDes)
+
+
+
